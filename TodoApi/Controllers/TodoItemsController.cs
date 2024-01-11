@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Models;
@@ -47,6 +48,32 @@ public class TodoItemsController(TodoContext context) : ControllerBase
         }
 
         return NoContent();
+    }
+
+    // PATCH: api/TodoItems/5
+    // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+    [HttpPatch("{id:long}")]
+    public async Task<IActionResult> PatchTodoItem(long id, [FromBody] JsonPatchDocument<TodoItem> patchDoc)
+    {
+        var todoItem = await context.TodoItems.FindAsync(id);
+
+        if (todoItem == null) return NotFound();
+
+        patchDoc.ApplyTo(todoItem, ModelState);
+        context.Update(todoItem);
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!TodoItemExists(id))
+                return NotFound();
+            throw;
+        }
+
+        return !ModelState.IsValid ? BadRequest(ModelState) : new ObjectResult(todoItem);
     }
 
     // POST: api/TodoItems
